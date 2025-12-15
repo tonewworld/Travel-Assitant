@@ -29,10 +29,10 @@ npm run dev
 
 默认监听 `http://localhost:3000`。
 
-如需配置高德 / 大模型密钥，请编辑：
+如需配置大模型密钥，请编辑：
 
 ```ts
-backend/src/config/config.ts
+backend/.env
 ```
 
 ### 2. 启动前端
@@ -98,3 +98,4 @@ npm run dev
    - 当前会话/偏好信息存内存
    - 可扩展为数据库（MySQL / PostgreSQL / MongoDB）
    - 增加简单登录后，支持多用户会话管理
+
