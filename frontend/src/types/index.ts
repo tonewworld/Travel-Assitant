@@ -38,4 +38,5 @@ export interface Itinerary {
   generalTips: string[];
   transportSummary?: string;
   hotelSuggestions?: string[];
+  
 }

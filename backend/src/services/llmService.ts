@@ -133,12 +133,40 @@ function buildPromptForItinerary(req: GenerateItineraryRequest): string {
 }`,
     `3. 每一天安排 3-5 个主要活动（景点、用餐或休息）。`,
     `4. 注意行程节奏，不要过于紧张；老人与小孩要适当留出休息时间。`,
-    `5. 尽量用中文输出。`
+    `5. JSON 中所有字符串不要包含未转义的换行，换行请使用 \\n 表示。`,
+`6. 严禁输出 Markdown 代码块标记（如 \`\`\`json 或 \`\`\`）。`,
+`7. 只输出一个 JSON 对象，不要输出任何解释性文字、前后缀说明。`,
+`8.尽量使用中文输出`
   ]
     .filter(Boolean)
     .join("\n");
 }
 
+function extractJsonBlock(text: string): string {
+  let cleaned = text.trim();
+
+  // 去掉前后 ```json / ``` 包裹
+  cleaned = cleaned
+    .replace(/^```json/i, "")
+    .replace(/^```/, "")
+    .replace(/```$/, "")
+    .trim();
+
+  // 如果整体长得像一个 JSON 对象，就直接用
+  if (cleaned.startsWith("{") && cleaned.endsWith("}")) {
+    return cleaned;
+  }
+
+  // 否则尝试从中间截取第一个 {...} 块
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    return cleaned.slice(firstBrace, lastBrace + 1);
+  }
+
+  // 实在没有就原样返回
+  return cleaned;
+}
 /**
  * 安全解析大模型返回的 JSON 文本
  */
@@ -146,13 +174,8 @@ function safeParseItinerary(jsonText: string, fallback: Itinerary): Itinerary {
   try {
     // 有些模型会在外面包一层 ```json ```，简单去掉
     const cleaned = jsonText
-      .trim()
-      .replace(/^```json/i, "")
-      .replace(/^```/, "")
-      .replace(/```$/, "")
-      .trim();
-
-    const obj = JSON.parse(cleaned);
+    const jsonCandidate = extractJsonBlock(jsonText);
+    const obj = JSON.parse(jsonCandidate);
 
     // 做一些简单的类型兜底
     const daysDetail: ItineraryDay[] = Array.isArray(obj.daysDetail)
@@ -278,6 +301,7 @@ export async function generateItineraryByLLM(
 
   try {
     const resultText = await callMoonshotChat(messages);
+    console.log("[MOONSHOT RAW TEXT]", resultText); 
     const itinerary = safeParseItinerary(resultText, mockItinerary);
     return itinerary;
   } catch (e) {
